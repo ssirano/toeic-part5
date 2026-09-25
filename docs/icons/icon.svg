@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1f4e8c"/>
+  <rect x="96" y="332" width="320" height="18" rx="9" fill="#9cc3f2"/>
+  <text x="256" y="300" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-weight="800" font-size="230" fill="#ffffff">P5</text>
+  <text x="256" y="420" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-weight="600" font-size="56" fill="#cfe2fa">TOEIC</text>
+</svg>
