@@ -106,6 +106,23 @@ function structure(st) {
   return `<div class="structure">${segs.join("")}</div>`;
 }
 
+// 문장 형식 · 태 · 시제 — 각각 '왜 그런지'까지
+function grammarBlock(q) {
+  if (!q.fm) return "";
+  const w = q.why ?? {};
+  const [main, ...notes] = q.tn ?? [];
+  const why = (text) => (text ? `<div class="why">왜? ${esc(text)}</div>` : "");
+  return `<div class="section grammar">
+    <div class="label">문장 형식 · 태 · 시제</div>
+    <div class="gline"><span class="gtag">형식</span><div>${esc(q.fm)}${why(w.fm)}</div></div>
+    <div class="gline"><span class="gtag">태</span><div>${esc(w.vl ?? "")}${why(w.vo)}</div></div>
+    <div class="gline"><span class="gtag">시제</span><div>${esc(main ?? "")}${why(w.tn)}${
+      notes.length ? `<ul class="notes">${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""
+    }</div></div>
+    <div class="gline"><span class="gtag">빈칸</span><div>${esc(q.sl)}</div></div>
+  </div>`;
+}
+
 function reviewCard(q, chosen, num, order = [0, 1, 2, 3]) {
   const ok = chosen === q.a;
   const status = chosen === null || chosen === undefined ? "무응답" : ok ? "정답" : "오답";
@@ -130,6 +147,7 @@ function reviewCard(q, chosen, num, order = [0, 1, 2, 3]) {
     <div class="qtext">${sentence(q, { cls: "ok", text: q.c[q.a] })}</div>
     <ol class="opts">${opts}</ol>
     <div class="section"><div class="label">해석</div>${esc(q.tr)}</div>
+    ${grammarBlock(q)}
     <div class="section"><div class="label">문장 구조</div>${structure(q.st)}</div>
     <div class="section"><div class="label">해설</div>${esc(q.ex)}</div>
     <div class="tip">💡 ${esc(q.tip)}</div>

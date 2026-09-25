@@ -57,6 +57,12 @@ def validate(code: str, i: int, item: dict) -> list[str]:
             errors.append(f"{where}: '{key}' 비어 있음")
     if not item["v"] or any(not isinstance(p, list) or len(p) != 2 for p in item["v"]):
         errors.append(f"{where}: v는 [단어, 뜻] 목록")
+    # 문장 형식·빈칸 자리·시제와 그 이유 (scripts/apply_forms.py, scripts/explain.py로 생성)
+    for key in ("fm", "sl", "tn", "why"):
+        if not item.get(key):
+            errors.append(f"{where}: '{key}' 없음 (apply_forms.py / explain.py 실행 필요)")
+    if item.get("why") and set(item["why"]) != {"fm", "vl", "vo", "tn"}:
+        errors.append(f"{where}: why 항목 누락")
     return errors
 
 
