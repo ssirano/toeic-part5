@@ -267,3 +267,53 @@ button.danger { color: var(--bad); border-color: var(--bad); background: transpa
   z-index: 11;
   max-width: calc(100% - 32px);
 }
+
+/* 어휘 보기 뜻 · 단어장 ☆ */
+.review ol.opts li { display: flex; align-items: flex-start; gap: 6px; }
+.review ol.opts li > span:first-child { flex: 1; }
+.review ol.opts li.mine { text-decoration: none; }
+.review ol.opts li.mine > span:first-child { text-decoration: line-through; }
+.cm { font-size: 0.85em; font-weight: 400; color: var(--muted); display: block; }
+.star {
+  border: none; background: none; padding: 0 6px; min-height: 0; font-size: 1.25em; line-height: 1.2;
+  color: var(--muted); cursor: pointer;
+}
+.star.on { color: var(--warn); }
+.vocab td:last-child { width: 1%; text-align: right; }
+.pair { display: flex; align-items: center; gap: 8px; margin: 4px 0 6px; }
+
+/* 풀이 공식 */
+.rules .rule, .group .rule {
+  border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 6px 0; background: var(--surface);
+}
+.rule summary { cursor: pointer; font-weight: 600; }
+.rule[open] summary { margin-bottom: 4px; }
+.rule.missed { border-color: var(--bad); }
+.worst { padding-left: 1.4em; }
+.worst li { margin: 4px 0; }
+
+/* 내 단어장 */
+.word { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; margin: 8px 0; }
+.word.learned { opacity: 0.7; }
+.wline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.ww { font-size: 1.1em; }
+.wm.hid { background: var(--surface-2); color: transparent; border-radius: 6px; padding: 0 8px; cursor: pointer; user-select: none; }
+.wex { margin-top: 6px; }
+.chip.small { font-size: 0.75em; padding: 2px 8px; }
+
+/* 인쇄용 보기: 오른쪽 절반은 필기 여백 */
+.printable { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.printable col.c1 { width: 52%; }
+.printable td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; font-size: 0.92em; }
+.printable td .wex { margin-top: 4px; }
+.printable .blank-col { min-height: 90px; height: 90px; }
+.printable .ghead td { background: var(--surface-2); font-weight: 700; }
+@media print {
+  :root { --bg: #fff; --surface: #fff; --surface-2: #eee; --text: #000; --muted: #444; --border: #999; }
+  body { background: #fff; font-size: 12pt; }
+  main { max-width: none; padding: 0; }
+  .noprint, #toast, #modal { display: none !important; }
+  .printable tr { break-inside: avoid; }
+  .print-title { font-size: 16pt; }
+}
+.wmore.hid { display: none; }

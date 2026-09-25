@@ -10,7 +10,8 @@ import {
   subtypeStats,
   weakRanking,
 } from "./engine.js";
-import { exportBackup, importBackup, load, save } from "./storage.js";
+import { downloadFile, exportBackup, importBackup, load, save, today } from "./storage.js";
+import { addWord, ankiText, autoCollect, boldWord, filledSentence, ruleCounts, ruleStats, wordFrom, wordKey, worstRules } from "./words.js";
 
 const MODES = { comp: "종합 테스트", weak: "약점 테스트", pick: "유형 선택 테스트" };
 const LETTERS = ["A", "B", "C", "D"];
@@ -24,7 +25,18 @@ let bank = null;
 let index = null;
 let state = load();
 let view = { name: "home" };
-let ui = { showGrid: false, resultFilter: "all", noteFilter: "", pick: new Set(), pickSize: TEST_SIZE };
+let ui = {
+  showGrid: false,
+  resultFilter: "all",
+  noteFilter: "",
+  pick: new Set(),
+  pickSize: TEST_SIZE,
+  wordFilter: "learning",
+  hideMeaning: false,
+  ruleFilter: "all",
+  printWhat: "words",
+  printScope: "learning",
+};
 let timerId = null;
 
 // --- 유틸 ---------------------------------------------------------------------
@@ -123,19 +135,41 @@ function grammarBlock(q) {
   </div>`;
 }
 
+// 단어장 ☆ 버튼. kind/i로 문제 속 어느 단어인지 가리킨다 (words.js wordFrom)
+function starButton(q, kind, i) {
+  const entry = wordFrom(q, kind, i);
+  if (!entry) return "";
+  const on = Boolean(state.words[wordKey(entry.w)]);
+  return `<button class="star ${on ? "on" : ""}" data-action="star" data-id="${q.id}" data-kind="${kind}" data-i="${i ?? ""}" aria-label="단어장에 넣기">${on ? "★" : "☆"}</button>`;
+}
+
+// 이 문제에 쓰인 풀이 공식 — 제목은 항상 보이고, 누르면 설명·예시가 펼쳐진다
+function rulesBlock(q) {
+  const rules = (q.r ?? []).map((id) => index.rules.get(id)).filter(Boolean);
+  if (!rules.length) return "";
+  return `<div class="section rules"><div class="label">풀이 공식</div>${rules
+    .map(
+      (r) => `<details class="rule"><summary>📌 ${esc(r.t)}</summary>
+        <p>${esc(r.d)}</p><p class="small muted">예: ${esc(r.e)}</p></details>`,
+    )
+    .join("")}</div>`;
+}
+
 function reviewCard(q, chosen, num, order = [0, 1, 2, 3]) {
   const ok = chosen === q.a;
   const status = chosen === null || chosen === undefined ? "무응답" : ok ? "정답" : "오답";
   const flagged = state.flags.includes(q.id);
-  // 시험 때 본 순서 그대로 (A)~(D)를 붙인다
+  // 시험 때 본 순서 그대로 (A)~(D)를 붙인다. 어휘 문제는 보기마다 뜻과 ☆
   const opts = order
     .map((i, pos) => {
       const cls = i === q.a ? "correct" : i === chosen ? "mine" : "";
       const mark = i === q.a ? " ✓" : i === chosen ? " (내 답)" : "";
-      return `<li class="${cls}">(${LETTERS[pos]}) ${esc(q.c[i])}${mark}</li>`;
+      const meaning = q.cm ? ` <span class="cm">${esc(q.cm[i])}</span>` : "";
+      return `<li class="${cls}"><span>(${LETTERS[pos]}) ${esc(q.c[i])}${mark}${meaning}</span>${starButton(q, "c", i)}</li>`;
     })
     .join("");
-  const vocab = q.v.map(([w, m]) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td></tr>`).join("");
+  const vocab = q.v.map(([w, m], i) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td><td>${starButton(q, "v", i)}</td></tr>`).join("");
+  const pair = q.k ? `<div class="pair"><span class="gtag">짝꿍</span><span>${esc(q.k)}</span>${starButton(q, "k")}</div>` : "";
   return `<article class="review ${ok ? "" : "wrong"}">
     <header>
       ${num ? `<b>${num}.</b>` : ""}
@@ -150,8 +184,9 @@ function reviewCard(q, chosen, num, order = [0, 1, 2, 3]) {
     ${grammarBlock(q)}
     <div class="section"><div class="label">문장 구조</div>${structure(q.st)}</div>
     <div class="section"><div class="label">해설</div>${esc(q.ex)}</div>
+    ${rulesBlock(q)}
     <div class="tip">💡 ${esc(q.tip)}</div>
-    <div class="section"><div class="label">어휘</div><table class="vocab">${vocab}</table></div>
+    <div class="section"><div class="label">어휘 <span class="muted small">☆를 누르면 내 단어장에 들어가요</span></div>${pair}<table class="vocab">${vocab}</table></div>
   </article>`;
 }
 
@@ -206,6 +241,8 @@ function renderHome() {
     <div class="links">
       <button data-action="go" data-to="stats">📊 유형별 통계</button>
       <button data-action="go" data-to="notes">📒 오답 노트</button>
+      <button data-action="go" data-to="words">📚 내 단어장 ${Object.keys(state.words).length || ""}</button>
+      <button data-action="go" data-to="rules">📌 풀이 공식</button>
       <button data-action="go" data-to="settings">⚙️ 설정·백업</button>
     </div>
     ${
@@ -337,6 +374,7 @@ function renderStats() {
     <h1>유형별 통계</h1>
     <p class="muted small">정답률은 최근 풀이에 더 큰 비중을 둔 추정치예요. 3문제 이상 풀면 약점 순위에 들어가요.</p>
     ${weak.length ? `<h3>약한 유형</h3><div class="chips">${weak.map((w) => `<span class="chip bad">${esc(w.name)} ${pct(w.mastery)}</span>`).join("")}</div>` : ""}
+    ${worstRulesBlock()}
     ${groups}`;
 }
 
@@ -406,6 +444,8 @@ function renderSettings() {
       <button data-action="toggle-setting" data-key="autoAdvance">${s.autoAdvance ? "켜짐" : "꺼짐"}</button></div>
     <div class="setting"><div>풀이 시간 표시</div><span class="spacer"></span>
       <button data-action="toggle-setting" data-key="showTimer">${s.showTimer ? "켜짐" : "꺼짐"}</button></div>
+    <div class="setting"><div>틀린 어휘 문제의 단어를 단어장에 자동으로 넣기<div class="muted small">정답과 내가 고른 오답 보기</div></div><span class="spacer"></span>
+      <button data-action="toggle-setting" data-key="autoWords">${s.autoWords ? "켜짐" : "꺼짐"}</button></div>
     <div class="setting"><div>글자 크기</div><span class="spacer"></span>
       ${[
         [1, "보통"],
@@ -429,13 +469,158 @@ function renderSettings() {
     <p class="muted small" style="margin-top:24px">문제 은행 ${index.byId.size}문제 · 버전 ${esc(bank.version)}</p>`;
 }
 
+// --- 화면: 풀이 공식 -----------------------------------------------------------
+
+function worstRulesBlock() {
+  const worst = worstRules(index, state.history);
+  if (!worst.length) return "";
+  return `<h3>많이 틀린 풀이 공식</h3><ol class="worst">${worst
+    .map((w) => `<li><b>${esc(w.rule.t)}</b> <span class="muted small">틀림 ${w.wrong} / 적용 ${w.n}</span></li>`)
+    .join("")}</ol><button class="ghost small" data-action="rules-wrong">틀린 공식 모아 보기 →</button>`;
+}
+
+function renderRules() {
+  const stats = ruleStats(index, state.history);
+  const counts = ruleCounts(index);
+  const wrongOnly = ui.ruleFilter === "wrong";
+  const groups = index.groups
+    .map((g) => {
+      const rules = [...index.rules.values()].filter((r) => r.g === g.code && (!wrongOnly || stats.get(r.id)?.wrong));
+      if (!rules.length) return "";
+      const items = rules
+        .map((r) => {
+          const st = stats.get(r.id);
+          const mine = st ? ` · 내 풀이 ${st.n - st.wrong}/${st.n}` : "";
+          return `<details class="rule ${st?.wrong ? "missed" : ""}"><summary>${esc(r.t)}</summary>
+            <p>${esc(r.d)}</p><p class="small muted">예: ${esc(r.e)}</p>
+            <p class="small muted">이 공식이 쓰인 문제 ${counts.get(r.id) ?? 0}개${mine}</p></details>`;
+        })
+        .join("");
+      return `<section class="group"><h3>${esc(g.name)} <span class="muted small">${rules.length}</span></h3>${items}</section>`;
+    })
+    .join("");
+  return `
+    <div class="topbar"><button class="ghost" data-action="go" data-to="home">← 홈</button><span class="spacer"></span>
+      <button data-action="open-print" data-what="rules">🖨️ 인쇄용 보기</button></div>
+    <h1>풀이 공식 모음</h1>
+    <p class="muted small">문제마다 해설 화면에 이 공식이 붙어 있어요. 공식을 누르면 설명과 예시가 펼쳐져요.</p>
+    <div class="tabs">
+      <button data-action="rule-filter" data-f="all" class="${wrongOnly ? "" : "on"}">전체 ${index.rules.size}</button>
+      <button data-action="rule-filter" data-f="wrong" class="${wrongOnly ? "on" : ""}">내가 틀린 공식</button>
+    </div>
+    ${groups || `<p class="muted">아직 틀린 공식이 없어요.</p>`}`;
+}
+
+// --- 화면: 내 단어장 -----------------------------------------------------------
+
+function wordList(scope) {
+  return Object.values(state.words)
+    .filter((e) => scope === "all" || (scope === "learned" ? e.learned : !e.learned))
+    .sort((a, b) => b.ts - a.ts);
+}
+
+// 예문(정답을 채운 문제 문장) + 해석·짝꿍. 뜻을 가릴 때는 해석·짝꿍도 뜻이 드러나므로 같이 가린다
+function wordExample(e, hide = false) {
+  const q = index.byId.get(e.qid);
+  if (!q) return "";
+  return `<div class="wex">${boldWord(esc(filledSentence(q)), e.w)}</div><div class="wmore ${hide ? "hid" : ""}">
+    <div class="muted small">${esc(q.tr)}</div>${q.k ? `<div class="small">짝꿍: ${esc(q.k)}</div>` : ""}</div>`;
+}
+
+function renderWords() {
+  const all = Object.values(state.words);
+  const learning = all.filter((e) => !e.learned).length;
+  const fresh = all.filter((e) => !e.exported).length;
+  const list = wordList(ui.wordFilter);
+  const items = list
+    .map((e) => {
+      const key = wordKey(e.w);
+      return `<div class="word ${e.learned ? "learned" : ""}">
+        <div class="wline"><b class="ww">${esc(e.w)}</b>
+          <span class="wm ${ui.hideMeaning ? "hid" : ""}" data-action="reveal">${esc(e.m)}</span>
+          <span class="spacer"></span>
+          ${e.exported ? `<span class="chip small">Anki</span>` : ""}
+          <button class="ghost small" data-action="word-learned" data-key="${esc(key)}">${e.learned ? "다시 외우기" : "외웠어요 ✓"}</button>
+          <button class="ghost small" data-action="word-delete" data-key="${esc(key)}">삭제</button></div>
+        ${wordExample(e, ui.hideMeaning)}
+      </div>`;
+    })
+    .join("");
+  return `
+    <div class="topbar"><button class="ghost" data-action="go" data-to="home">← 홈</button></div>
+    <h1>내 단어장</h1>
+    <p class="muted small">해설의 ☆를 누른 단어와 틀린 어휘 문제의 단어가 모여요. 예문은 그 단어가 나온 문제 문장이에요.</p>
+    <div class="links">
+      <button class="primary" data-action="anki" ${all.length ? "" : "disabled"}>Anki 파일 저장${fresh ? ` (새 단어 ${fresh})` : ""}</button>
+      <button data-action="open-print" data-what="words" ${all.length ? "" : "disabled"}>🖨️ 인쇄용 보기 (필기 여백)</button>
+      <button data-action="toggle-hide">${ui.hideMeaning ? "뜻 보이기" : "뜻 가리기"}</button>
+    </div>
+    <div class="tabs">
+      <button data-action="word-filter" data-f="learning" class="${ui.wordFilter === "learning" ? "on" : ""}">외우는 중 ${learning}</button>
+      <button data-action="word-filter" data-f="learned" class="${ui.wordFilter === "learned" ? "on" : ""}">외운 단어 ${all.length - learning}</button>
+      <button data-action="word-filter" data-f="all" class="${ui.wordFilter === "all" ? "on" : ""}">전체 ${all.length}</button>
+    </div>
+    ${ui.hideMeaning && list.length ? `<p class="muted small">가려진 뜻을 누르면 보여요.</p>` : ""}
+    ${items || `<p class="muted">${all.length ? "이 목록은 비어 있어요." : "아직 단어가 없어요. 채점 후 해설 화면에서 모르는 단어의 ☆를 눌러 보세요."}</p>`}`;
+}
+
+// --- 화면: 인쇄용 보기 (크롬 인쇄 -> PDF 저장 -> 삼성노트에서 필기) ---------------
+
+function renderPrint() {
+  const words = ui.printWhat === "words";
+  const title = words ? "Part 5 단어장" : "Part 5 풀이 공식";
+  let rows = "";
+  if (words) {
+    rows = wordList(ui.printScope)
+      .map((e) => `<tr><td><b>${esc(e.w)}</b> — ${esc(e.m)}${wordExample(e)}</td><td class="blank-col"></td></tr>`)
+      .join("");
+  } else {
+    const stats = ruleStats(index, state.history);
+    rows = index.groups
+      .map((g) => {
+        const rules = [...index.rules.values()].filter((r) => r.g === g.code && (ui.printScope !== "wrong" || stats.get(r.id)?.wrong));
+        if (!rules.length) return "";
+        return `<tr class="ghead"><td colspan="2">${esc(g.name)}</td></tr>${rules
+          .map((r) => `<tr><td><b>${esc(r.t)}</b><div class="small">${esc(r.d)}</div><div class="small muted">예: ${esc(r.e)}</div></td><td class="blank-col"></td></tr>`)
+          .join("")}`;
+      })
+      .join("");
+  }
+  const scopes = words
+    ? [["learning", "외우는 중"], ["all", "전체"]]
+    : [["all", "전체"], ["wrong", "내가 틀린 공식"]];
+  return `
+    <div class="noprint">
+      <div class="topbar"><button class="ghost" data-action="go" data-to="${words ? "words" : "rules"}">← 돌아가기</button><span class="spacer"></span>
+        <button class="primary" data-action="print">인쇄 · PDF 저장</button></div>
+      <p class="small muted">오른쪽 빈칸은 필기 여백이에요. '인쇄 · PDF 저장' → 프린터를 'PDF로 저장'으로 → 저장한 PDF를 삼성노트에서 열어 S펜으로 필기하세요.</p>
+      <div class="tabs">${scopes
+        .map(([v, l]) => `<button data-action="print-scope" data-f="${v}" class="${ui.printScope === v ? "on" : ""}">${l}</button>`)
+        .join("")}</div>
+    </div>
+    <h1 class="print-title">${title} <span class="small muted">${today().replace(/(\d{4})(\d{2})(\d{2})/, "$1.$2.$3")}</span></h1>
+    ${rows ? `<table class="printable"><colgroup><col class="c1"><col class="c2"></colgroup>${rows}</table>` : `<p class="muted">인쇄할 내용이 없어요.</p>`}`;
+}
+
 // --- 렌더링 ---------------------------------------------------------------------
 
 function render() {
   clearInterval(timerId);
-  const screens = { home: renderHome, test: renderTest, result: renderResult, stats: renderStats, pick: renderPick, notes: renderNotes, settings: renderSettings };
+  const screens = {
+    home: renderHome,
+    test: renderTest,
+    result: renderResult,
+    stats: renderStats,
+    pick: renderPick,
+    notes: renderNotes,
+    settings: renderSettings,
+    words: renderWords,
+    rules: renderRules,
+    print: renderPrint,
+  };
   if (view.name === "test" && !state.inProgress) view = { name: "home" };
   $app.innerHTML = (screens[view.name] ?? renderHome)();
+  document.body.classList.toggle("printing", view.name === "print");
   if (view.name === "test" && state.settings.showTimer) {
     timerId = setInterval(() => {
       const el = document.getElementById("timer");
@@ -541,9 +726,11 @@ async function submit() {
   state.history.attempts.push(...graded.attempts);
   state.history.tests.push(graded.record);
   state.inProgress = null;
+  const added = state.settings.autoWords ? autoCollect(state.words, index, graded.attempts) : 0;
   persist();
   ui.resultFilter = "all";
   go("result", { testId: graded.record.id });
+  if (added) toast(`틀린 어휘 문제의 단어 ${added}개를 단어장에 넣었어요.`);
 }
 
 const actions = {
@@ -622,6 +809,96 @@ const actions = {
   "pick-size": (el) => {
     ui.pickSize = Number(el.dataset.n);
     render();
+  },
+  star: (el) => {
+    const q = index.byId.get(el.dataset.id);
+    const entry = q && wordFrom(q, el.dataset.kind, el.dataset.i === "" ? undefined : Number(el.dataset.i));
+    if (!entry) return;
+    const key = wordKey(entry.w);
+    const on = !state.words[key];
+    if (on) addWord(state.words, entry, "star");
+    else delete state.words[key];
+    persist();
+    // 같은 단어의 ☆가 화면에 여러 개일 수 있어 모두 갱신 (다시 그리면 스크롤이 튀므로 버튼만 바꾼다)
+    document.querySelectorAll("button.star").forEach((b) => {
+      const other = index.byId.get(b.dataset.id);
+      const e = other && wordFrom(other, b.dataset.kind, b.dataset.i === "" ? undefined : Number(b.dataset.i));
+      if (e && wordKey(e.w) === key) {
+        b.classList.toggle("on", on);
+        b.textContent = on ? "★" : "☆";
+      }
+    });
+    toast(on ? `'${entry.w}'을(를) 단어장에 넣었어요.` : `'${entry.w}'을(를) 단어장에서 뺐어요.`, 1600);
+  },
+  "word-filter": (el) => {
+    ui.wordFilter = el.dataset.f;
+    render();
+  },
+  "toggle-hide": () => {
+    ui.hideMeaning = !ui.hideMeaning;
+    render();
+  },
+  reveal: (el) => el.closest(".word").querySelectorAll(".hid").forEach((x) => x.classList.remove("hid")),
+  "word-learned": (el) => {
+    const e = state.words[el.dataset.key];
+    if (!e) return;
+    e.learned = !e.learned;
+    persist();
+    render();
+  },
+  "word-delete": async (el) => {
+    const e = state.words[el.dataset.key];
+    if (!e) return;
+    const c = await modal("단어 삭제", `<p>'${esc(e.w)}'을(를) 단어장에서 뺄까요?</p>`, [
+      { label: "취소", value: 0 },
+      { label: "삭제", value: 1, cls: "danger" },
+    ]);
+    if (!c) return;
+    delete state.words[el.dataset.key];
+    persist();
+    render();
+  },
+  async anki() {
+    const all = Object.values(state.words).sort((a, b) => a.ts - b.ts);
+    let list = all.filter((e) => !e.exported);
+    if (!list.length) {
+      const c = await modal("새 단어가 없어요", "<p>단어장의 모든 단어를 이미 Anki 파일로 저장했어요. 전체를 다시 저장할까요?</p>", [
+        { label: "취소", value: 0 },
+        { label: `전체 ${all.length}개 저장`, value: 1, cls: "primary" },
+      ]);
+      if (!c) return;
+      list = all;
+    }
+    downloadFile(`part5-words-${today()}.txt`, ankiText(list, index), "text/plain;charset=utf-8");
+    list.forEach((e) => (e.exported = true));
+    persist();
+    render();
+    modal(
+      "Anki 파일을 저장했어요",
+      `<p>${list.length}개 단어를 저장했어요. 다음에는 새로 추가한 단어만 저장돼요.</p>
+       <ol class="small"><li>AnkiDroid: 메뉴 → 가져오기 → 저장한 <b>part5-words-${today()}.txt</b> 선택</li>
+       <li>노트 유형은 <b>기본(Basic)</b>, 덱은 원하는 덱(예: Part5 단어)을 고르고 가져오기</li>
+       <li>AnkiDroid에서 안 되면 PC Anki의 '파일 → 가져오기'로 넣고 동기화하세요.</li></ol>`,
+      [{ label: "확인", value: 1, cls: "primary" }],
+    );
+  },
+  "open-print": (el) => {
+    ui.printWhat = el.dataset.what;
+    ui.printScope = ui.printWhat === "words" ? "learning" : "all";
+    go("print");
+  },
+  "print-scope": (el) => {
+    ui.printScope = el.dataset.f;
+    render();
+  },
+  print: () => window.print(),
+  "rule-filter": (el) => {
+    ui.ruleFilter = el.dataset.f;
+    render();
+  },
+  "rules-wrong": () => {
+    ui.ruleFilter = "wrong";
+    go("rules");
   },
   "toggle-setting": (el) => {
     state.settings[el.dataset.key] = !state.settings[el.dataset.key];

@@ -4,10 +4,10 @@ import { emptyHistory } from "./engine.js";
 
 const KEY = "part5-trainer.v1";
 
-export const DEFAULT_SETTINGS = { autoAdvance: true, showTimer: true, scale: 1 };
+export const DEFAULT_SETTINGS = { autoAdvance: true, showTimer: true, scale: 1, autoWords: true };
 
 export function defaultState() {
-  return { history: emptyHistory(), inProgress: null, settings: { ...DEFAULT_SETTINGS }, flags: [] };
+  return { history: emptyHistory(), inProgress: null, settings: { ...DEFAULT_SETTINGS }, flags: [], words: {} };
 }
 
 export function load() {
@@ -39,22 +39,29 @@ function normalize(data) {
     inProgress: data?.inProgress ?? null,
     settings: { ...base.settings, ...(data?.settings ?? {}) },
     flags: Array.isArray(data?.flags) ? data.flags : [],
+    words: data?.words && typeof data.words === "object" && !Array.isArray(data.words) ? data.words : {},
   };
 }
 
-export function exportBackup(state) {
-  const blob = new Blob([JSON.stringify({ app: "part5-trainer", exported: Date.now(), ...state })], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
+// 파일로 내려받기 (백업·Anki 단어 파일)
+export function downloadFile(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
-  const d = new Date();
   a.href = url;
-  a.download = `part5-backup-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
+  a.download = name;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function today() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function exportBackup(state) {
+  downloadFile(`part5-backup-${today()}.json`, JSON.stringify({ app: "part5-trainer", exported: Date.now(), ...state }), "application/json");
 }
 
 export async function importBackup(file) {

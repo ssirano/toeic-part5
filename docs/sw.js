@@ -1,7 +1,7 @@
 // 오프라인 지원: 항상 네트워크 우선(업데이트 즉시 반영, JS 파일 버전이 섞이지 않게), 오프라인일 때만 캐시 사용.
-const CACHE = "part5-trainer-v3";
+const CACHE = "part5-trainer-v4";
 const NETWORK_TIMEOUT_MS = 3000; // 신호가 약할 때 오래 기다리지 않고 저장본으로 전환
-const SHELL = ["./", "index.html", "style.css", "js/app.js", "js/engine.js", "js/storage.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "questions.json"];
+const SHELL = ["./", "index.html", "style.css", "js/app.js", "js/engine.js", "js/storage.js", "js/words.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "questions.json"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

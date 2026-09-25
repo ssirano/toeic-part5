@@ -7,6 +7,8 @@
     [{"q": "... ------- ...", "c": [4개 보기], "a": 정답 인덱스(0-3),
       "tr": 해석, "st": 문장 구조, "ex": 해설(오답 이유 포함), "tip": 팁,
       "v": [["단어", "뜻"], ...]}]
+    + fm·sl·tn·why (문장 형식·시제, apply_forms.py / explain.py)
+    + r (풀이 공식 ID), 어휘 문제는 k (짝꿍 표현)·cm (보기 뜻) (apply_rules.py)
 
 문제 ID는 문제 문장의 해시로 자동 부여한다 -> 파일 안 순서를 바꿔도 학습 기록이 유지된다.
 문장을 고치면 새 문제로 취급된다.
@@ -26,6 +28,10 @@ DATA = ROOT / "data"
 OUT = ROOT / "docs" / "questions.json"
 BLANK = "-------"
 NEAR_DUP_RATIO = 0.85
+
+
+RULES = json.loads((DATA / "rules.json").read_text(encoding="utf-8"))
+RULE_IDS = {r["id"] for r in RULES}
 
 
 def normalize(text: str) -> str:
@@ -63,6 +69,13 @@ def validate(code: str, i: int, item: dict) -> list[str]:
             errors.append(f"{where}: '{key}' 없음 (apply_forms.py / explain.py 실행 필요)")
     if item.get("why") and set(item["why"]) != {"fm", "vl", "vo", "tn"}:
         errors.append(f"{where}: why 항목 누락")
+    # 풀이 공식·어휘 데이터 (scripts/apply_rules.py로 생성)
+    if not item.get("r") or any(r not in RULE_IDS for r in item["r"]):
+        errors.append(f"{where}: 풀이 공식(r)이 없거나 rules.json에 없는 ID")
+    if code.startswith("voc-") and not item.get("k"):
+        errors.append(f"{where}: 어휘 문제에 짝꿍 표현(k) 없음")
+    if "cm" in item and len(item["cm"]) != 4:
+        errors.append(f"{where}: 보기 뜻(cm)은 4개")
     return errors
 
 
@@ -120,6 +133,7 @@ def main() -> int:
                 {
                     "version": datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
                     "taxonomy": taxonomy,
+                    "rules": RULES,
                     "questions": questions,
                 },
                 ensure_ascii=False,

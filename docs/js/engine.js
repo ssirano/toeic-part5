@@ -45,7 +45,8 @@ export function indexBank(bank) {
     byId.set(q.id, q);
     if (bySubtype.has(q.t)) bySubtype.get(q.t).push(q);
   }
-  return { byId, bySubtype, subtypes, groups: bank.taxonomy.groups };
+  const rules = new Map((bank.rules ?? []).map((r) => [r.id, r]));
+  return { byId, bySubtype, subtypes, groups: bank.taxonomy.groups, rules };
 }
 
 export function seenIds(history) {

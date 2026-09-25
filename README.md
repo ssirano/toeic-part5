@@ -9,6 +9,10 @@
 - 유형 골라 풀기, 유형별 통계, 오답 노트(복습용 보기), 오류 신고
 - 채점 후 30문제 전체에 해석 · **문장 형식 · 태 · 시제(각각 '왜?' 설명 포함)** · 빈칸 자리 · 문장 구조 · 해설(오답 이유) · 팁 · 어휘
   - 부사절·관계절 시제가 풀이에 중요하면 따로 표시, 시제 문제는 시제를 고른 단서(since, by the time 등) 표시
+- **풀이 공식 189개**: 문제마다 적용되는 공식(예: "be동사·2형식 동사 뒤 보어 → 형용사")을 해설에 표시,
+  공식 모음 화면, 통계의 '많이 틀린 공식'
+- **내 단어장**: 해설 어휘·어휘 문제 보기(뜻 포함)·짝꿍 표현의 ☆로 추가, 틀린 어휘 문제는 자동 수집(설정에서 끄기 가능),
+  뜻 가리기, 외움 표시, **Anki 가져오기용 파일 저장**(새 단어만), **인쇄용 보기**(오른쪽 필기 여백 → PDF 저장 후 삼성노트에서 필기)
 - 보기 순서는 매번 섞이고, 해설 화면은 시험 때 본 순서 그대로 보여준다
 - 학습 기록은 기기 브라우저에만 저장 → 설정 화면에서 백업/복원
 
@@ -17,14 +21,16 @@
 ```
 data/
   taxonomy.json          # 유형 분류(8개 묶음, 32개 세부 유형)와 종합 테스트 비율(quota)
+  rules.json             # 풀이 공식 (영역·공식·설명·예시)
   questions/<유형>.json  # 문제 은행 (유형별 파일)
 scripts/build.py         # 검증 + docs/questions.json 생성
 docs/                    # GitHub Pages로 배포되는 앱
   js/engine.js           # 출제·채점·약점 분석 (순수 함수)
   js/app.js              # 화면
+  js/words.js            # 단어장·Anki 내보내기·공식 통계 (순수 함수)
   js/storage.js          # localStorage, 백업
   sw.js                  # 오프라인 캐시 (네트워크 우선)
-tests/engine.test.mjs    # 출제 알고리즘 테스트
+tests/*.test.mjs         # node --test tests/engine.test.mjs tests/words.test.mjs
 ```
 
 ## 문장 형식 · 태 · 시제 데이터
@@ -37,6 +43,14 @@ python3 scripts/apply_forms.py <검토폴더>   # 검토 결과(fm/sl/tn) 반영
 python3 scripts/explain.py                  # why 생성 (fm/tn/st 기반)
 ```
 
+## 풀이 공식 · 어휘 데이터
+
+문제마다 `r`(풀이 공식 ID, 표시 순서대로), 어휘 문제는 `k`(짝꿍 표현)와 `cm`(보기 4개의 뜻, 전치사 유형은 없음)이 있다.
+
+```bash
+python3 scripts/apply_rules.py <검토폴더>   # 공식 정의 + 문제 연결 + 어휘 데이터 반영 (형식은 스크립트 설명 참고)
+```
+
 ## 문제 추가
 
 `data/questions/<유형코드>.json`에 추가하고 빌드한다.
@@ -46,7 +60,7 @@ python3 scripts/explain.py                  # why 생성 (fm/tn/st 기반)
  "tr": "해석", "st": "[주어] ... / [동사] ...", "ex": "해설", "tip": "팁", "v": [["단어","뜻"]],
  "fm": "3형식 (...)", "sl": "빈칸 자리", "tn": ["주절: 현재완료 (...)", "부사절 ...: ..."]}
 ```
-새 문제는 `fm`/`sl`/`tn`을 채운 뒤 `scripts/explain.py`로 `why`를 만든다.
+새 문제는 `fm`/`sl`/`tn`을 채운 뒤 `scripts/explain.py`로 `why`를 만들고, `r`(어휘 문제는 `k`·`cm`도)을 붙인다.
 
 ```bash
 python3 scripts/build.py            # 검증(빈칸 1개, 보기 4개 중복 없음, 유사 문제 검사) 후 docs/questions.json 생성
