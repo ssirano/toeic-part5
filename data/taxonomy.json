@@ -1,78 +1,231 @@
 {
   "groups": [
     {
-      "code": "pos", "name": "품사", "quota": 6,
+      "code": "pos",
+      "name": "품사",
+      "quota": 7,
       "subtypes": [
-        {"code": "pos-noun", "name": "명사 자리"},
-        {"code": "pos-adj", "name": "형용사 자리"},
-        {"code": "pos-adv", "name": "부사 자리"},
-        {"code": "pos-person", "name": "사람·사물 명사 / 가산·불가산"},
-        {"code": "pos-compound", "name": "복합명사"}
+        {
+          "code": "pos-noun",
+          "name": "명사 자리",
+          "w": 3
+        },
+        {
+          "code": "pos-adj",
+          "name": "형용사 자리",
+          "w": 3
+        },
+        {
+          "code": "pos-adv",
+          "name": "부사 자리",
+          "w": 3
+        },
+        {
+          "code": "pos-person",
+          "name": "사람·사물 명사 / 가산·불가산",
+          "w": 1
+        },
+        {
+          "code": "pos-compound",
+          "name": "복합명사",
+          "w": 1
+        }
       ]
     },
     {
-      "code": "verb", "name": "동사", "quota": 4,
+      "code": "verb",
+      "name": "동사",
+      "quota": 3,
       "subtypes": [
-        {"code": "verb-agree", "name": "주어-동사 수일치"},
-        {"code": "verb-tense", "name": "시제"},
-        {"code": "verb-voice", "name": "능동태·수동태"},
-        {"code": "verb-cond", "name": "시간·조건 부사절의 시제"},
-        {"code": "verb-subj", "name": "가정법·당위의 동사원형"}
+        {
+          "code": "verb-agree",
+          "name": "주어-동사 수일치",
+          "w": 1
+        },
+        {
+          "code": "verb-tense",
+          "name": "시제",
+          "w": 2
+        },
+        {
+          "code": "verb-voice",
+          "name": "능동태·수동태",
+          "w": 3
+        },
+        {
+          "code": "verb-cond",
+          "name": "시간·조건 부사절의 시제",
+          "w": 2
+        },
+        {
+          "code": "verb-subj",
+          "name": "가정법·당위의 동사원형",
+          "w": 1
+        }
       ]
     },
     {
-      "code": "verbal", "name": "준동사", "quota": 2,
+      "code": "verbal",
+      "name": "준동사",
+      "quota": 2,
       "subtypes": [
-        {"code": "verbal-inf", "name": "to부정사"},
-        {"code": "verbal-ger", "name": "동명사"},
-        {"code": "verbal-part", "name": "분사 (현재분사·과거분사)"},
-        {"code": "verbal-partclause", "name": "분사구문"}
+        {
+          "code": "verbal-inf",
+          "name": "to부정사",
+          "w": 2
+        },
+        {
+          "code": "verbal-ger",
+          "name": "동명사",
+          "w": 2
+        },
+        {
+          "code": "verbal-part",
+          "name": "분사 (현재분사·과거분사)",
+          "w": 3
+        },
+        {
+          "code": "verbal-partclause",
+          "name": "분사구문",
+          "w": 1
+        }
       ]
     },
     {
-      "code": "pron", "name": "대명사", "quota": 2,
+      "code": "pron",
+      "name": "대명사",
+      "quota": 2,
       "subtypes": [
-        {"code": "pron-case", "name": "인칭대명사의 격"},
-        {"code": "pron-reflex", "name": "재귀대명사"},
-        {"code": "pron-indef", "name": "부정대명사·한정사"}
+        {
+          "code": "pron-case",
+          "name": "인칭대명사의 격",
+          "w": 3
+        },
+        {
+          "code": "pron-reflex",
+          "name": "재귀대명사",
+          "w": 1
+        },
+        {
+          "code": "pron-indef",
+          "name": "부정대명사·한정사",
+          "w": 2
+        }
       ]
     },
     {
-      "code": "conj", "name": "접속사·관계사", "quota": 4,
+      "code": "conj",
+      "name": "접속사·관계사",
+      "quota": 3,
       "subtypes": [
-        {"code": "conj-prepconj", "name": "전치사 vs 접속사"},
-        {"code": "conj-adverbial", "name": "부사절 접속사 의미"},
-        {"code": "conj-correl", "name": "등위·상관접속사"},
-        {"code": "conj-noun", "name": "명사절 접속사"},
-        {"code": "conj-rel", "name": "관계대명사"},
-        {"code": "conj-reladv", "name": "관계부사·복합관계사"}
+        {
+          "code": "conj-prepconj",
+          "name": "전치사 vs 접속사",
+          "w": 3
+        },
+        {
+          "code": "conj-adverbial",
+          "name": "부사절 접속사 의미",
+          "w": 3
+        },
+        {
+          "code": "conj-correl",
+          "name": "등위·상관접속사",
+          "w": 2
+        },
+        {
+          "code": "conj-noun",
+          "name": "명사절 접속사",
+          "w": 2
+        },
+        {
+          "code": "conj-rel",
+          "name": "관계대명사",
+          "w": 2
+        },
+        {
+          "code": "conj-reladv",
+          "name": "관계부사·복합관계사",
+          "w": 1
+        }
       ]
     },
     {
-      "code": "prep", "name": "전치사", "quota": 1,
+      "code": "prep",
+      "name": "전치사",
+      "quota": 2,
       "subtypes": [
-        {"code": "prep-time", "name": "시간 전치사"},
-        {"code": "prep-place", "name": "장소·방향 전치사"},
-        {"code": "prep-phrase", "name": "전치사 관용 표현"}
+        {
+          "code": "prep-time",
+          "name": "시간 전치사",
+          "w": 3
+        },
+        {
+          "code": "prep-place",
+          "name": "장소·방향 전치사",
+          "w": 1
+        },
+        {
+          "code": "prep-phrase",
+          "name": "전치사 관용 표현",
+          "w": 2
+        }
       ]
     },
     {
-      "code": "comp", "name": "비교·수량", "quota": 1,
+      "code": "comp",
+      "name": "비교·수량",
+      "quota": 1,
       "subtypes": [
-        {"code": "comp-degree", "name": "비교급·최상급"},
-        {"code": "comp-quant", "name": "수량 표현"}
+        {
+          "code": "comp-degree",
+          "name": "비교급·최상급",
+          "w": 2
+        },
+        {
+          "code": "comp-quant",
+          "name": "수량 표현",
+          "w": 1
+        }
       ]
     },
     {
-      "code": "voc", "name": "어휘", "quota": 10,
+      "code": "voc",
+      "name": "어휘",
+      "quota": 10,
       "subtypes": [
-        {"code": "voc-verb", "name": "동사 어휘"},
-        {"code": "voc-noun", "name": "명사 어휘"},
-        {"code": "voc-adj", "name": "형용사 어휘"},
-        {"code": "voc-adv", "name": "부사 어휘"},
-        {"code": "voc-colloc", "name": "연어 (함께 쓰이는 표현)"},
-        {"code": "voc-prepcombo", "name": "전치사와 결합하는 어휘"}
+        {
+          "code": "voc-verb",
+          "name": "동사 어휘",
+          "w": 2
+        },
+        {
+          "code": "voc-noun",
+          "name": "명사 어휘",
+          "w": 2
+        },
+        {
+          "code": "voc-adj",
+          "name": "형용사 어휘",
+          "w": 2
+        },
+        {
+          "code": "voc-adv",
+          "name": "부사 어휘",
+          "w": 2
+        },
+        {
+          "code": "voc-colloc",
+          "name": "연어 (함께 쓰이는 표현)",
+          "w": 3
+        },
+        {
+          "code": "voc-prepcombo",
+          "name": "전치사와 결합하는 어휘",
+          "w": 2
+        }
       ]
     }
-  ]
+  ],
+  "_note": "quota: 종합 테스트 30문제 중 묶음별 문항 수. w: 묶음 안에서 세부 유형이 뽑힐 상대 비중(출제 빈도 반영)."
 }

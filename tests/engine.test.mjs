@@ -137,6 +137,24 @@ test("기록이 없으면 약점 테스트 대신 안내", () => {
   assert.equal(weak.ids.length, 0);
 });
 
+test("종합 테스트는 세부 유형 가중치(w)를 반영한다", () => {
+  const taxonomy = {
+    groups: [{ code: "g", name: "G", quota: 30, subtypes: [{ code: "hot", name: "빈출", w: 3 }, { code: "rare", name: "드묾", w: 1 }] }],
+  };
+  const questions = [];
+  for (const t of ["hot", "rare"]) for (let i = 0; i < 5000; i++) questions.push({ id: `${t}-${i}`, t, a: 0 });
+  const index = indexBank({ taxonomy, questions });
+  let hot = 0;
+  let rare = 0;
+  for (let seed = 0; seed < 100; seed++) {
+    const { ids } = buildComprehensive(index, emptyHistory(), makeRng(seed), 30);
+    for (const id of ids) index.byId.get(id).t === "hot" ? hot++ : rare++;
+  }
+  const ratio = hot / rare;
+  // 쏠림 방지 보정 때문에 3:1보다는 완만하지만 확실히 더 많이 나와야 한다
+  assert.ok(ratio > 1.4 && ratio < 3.2, `hot:rare = ${ratio.toFixed(2)}`);
+});
+
 test("유형 골라 풀기는 선택한 유형에서만 고르게", () => {
   const index = indexBank(fakeBank(20));
   const { ids } = buildByTypes(index, emptyHistory(), ["voc-b", "verb-a"], makeRng(2), 10);

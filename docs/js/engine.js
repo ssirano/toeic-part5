@@ -37,7 +37,7 @@ export function indexBank(bank) {
   const subtypes = new Map(); // code -> { code, name, group, groupName }
   for (const g of bank.taxonomy.groups) {
     for (const s of g.subtypes) {
-      subtypes.set(s.code, { code: s.code, name: s.name, group: g.code, groupName: g.name });
+      subtypes.set(s.code, { code: s.code, name: s.name, group: g.code, groupName: g.name, w: s.w ?? 1 });
       bySubtype.set(s.code, []);
     }
   }
@@ -136,20 +136,49 @@ function roundRobin(index, codes, count, seen, taken, rng, stats) {
   return ids;
 }
 
-/** 종합 테스트: 실제 시험처럼 유형 묶음별 비율(taxonomy의 quota)을 맞춰 새 문제만 출제 */
+// 출제 빈도 가중치(w)에 비례해 유형을 고른다. 한 테스트에서 같은 유형을 뽑을수록 가중치를 낮춰 한쪽으로 쏠리지 않게 한다.
+function weightedPick(index, codes, count, seen, taken, rng) {
+  const picked = new Map();
+  const exhausted = new Set();
+  const ids = [];
+  while (ids.length < count) {
+    const open = codes.filter((c) => !exhausted.has(c));
+    if (!open.length) break;
+    const weightOf = (c) => (index.subtypes.get(c)?.w ?? 1) / (1 + (picked.get(c) ?? 0));
+    const total = open.reduce((sum, c) => sum + weightOf(c), 0);
+    let r = rng() * total;
+    let code = open[open.length - 1];
+    for (const c of open) {
+      r -= weightOf(c);
+      if (r <= 0) {
+        code = c;
+        break;
+      }
+    }
+    const id = takeUnseen(index, code, seen, taken, rng);
+    if (!id) {
+      exhausted.add(code);
+      continue;
+    }
+    ids.push(id);
+    picked.set(code, (picked.get(code) ?? 0) + 1);
+  }
+  return ids;
+}
+
+/** 종합 테스트: 실제 시험처럼 유형 묶음별 비율(quota)과 세부 유형 출제 빈도(w)를 반영해 새 문제만 출제 */
 export function buildComprehensive(index, history, rng, size = TEST_SIZE) {
   const seen = seenIds(history);
-  const stats = subtypeStats(index, history);
   const taken = new Set();
   const ids = [];
   const quotas = scaledQuotas(index.groups, size);
   index.groups.forEach((g, i) => {
     const codes = g.subtypes.map((s) => s.code);
-    ids.push(...roundRobin(index, codes, quotas[i], seen, taken, rng, stats));
+    ids.push(...weightedPick(index, codes, quotas[i], seen, taken, rng));
   });
   if (ids.length < size) {
     // 어떤 묶음의 새 문제가 바닥나면 다른 묶음에서 채운다
-    ids.push(...roundRobin(index, [...index.subtypes.keys()], size - ids.length, seen, taken, rng, stats));
+    ids.push(...weightedPick(index, [...index.subtypes.keys()], size - ids.length, seen, taken, rng));
   }
   return { ids: shuffle(ids, rng), shortfall: size - ids.length };
 }
