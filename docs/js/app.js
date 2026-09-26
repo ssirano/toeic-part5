@@ -11,7 +11,22 @@ import {
   weakRanking,
 } from "./engine.js";
 import { downloadFile, exportBackup, importBackup, load, save, today } from "./storage.js";
-import { addWord, ankiText, autoCollect, boldWord, filledSentence, ruleCounts, ruleStats, wordFrom, wordKey, worstRules } from "./words.js";
+import {
+  addWord,
+  ankiText,
+  autoCollect,
+  boldWord,
+  dateKey,
+  filledSentence,
+  noteWords,
+  relatedSolved,
+  ruleCounts,
+  ruleStats,
+  wordFrom,
+  wordKey,
+  worstRules,
+  wrongByDate,
+} from "./words.js";
 
 const MODES = { comp: "종합 테스트", weak: "약점 테스트", pick: "유형 선택 테스트" };
 const LETTERS = ["A", "B", "C", "D"];
@@ -36,7 +51,9 @@ let ui = {
   ruleFilter: "all",
   printWhat: "words",
   printScope: "learning",
+  printDate: "",
 };
+const APP_TITLE = document.title;
 let timerId = null;
 
 // --- 유틸 ---------------------------------------------------------------------
@@ -168,7 +185,7 @@ function reviewCard(q, chosen, num, order = [0, 1, 2, 3]) {
       return `<li class="${cls}"><span>(${LETTERS[pos]}) ${esc(q.c[i])}${mark}${meaning}</span>${starButton(q, "c", i)}</li>`;
     })
     .join("");
-  const vocab = q.v.map(([w, m], i) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td><td>${starButton(q, "v", i)}</td></tr>`).join("");
+  const vocab = q.v.map(([w, m], i) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td><td class="st">${starButton(q, "v", i)}</td></tr>`).join("");
   const pair = q.k ? `<div class="pair"><span class="gtag">짝꿍</span><span>${esc(q.k)}</span>${starButton(q, "k")}</div>` : "";
   return `<article class="review ${ok ? "" : "wrong"}">
     <header>
@@ -337,6 +354,7 @@ function renderResult() {
     <div class="links">
       <button class="primary" data-action="start-weak">약점 테스트 시작</button>
       <button data-action="start-comp">새 종합 테스트</button>
+      ${record.score < record.n ? `<button data-action="open-note-pdf" data-date="${dateKey(record.ts)}">📄 오늘 오답노트 PDF</button>` : ""}
     </div>
     <div class="tabs">
       <button data-action="result-filter" data-f="all" class="${ui.resultFilter === "all" ? "on" : ""}">전체 ${attempts.length}</button>
@@ -424,6 +442,7 @@ function renderNotes() {
     <div class="topbar"><button class="ghost" data-action="go" data-to="home">← 홈</button></div>
     <h1>오답 노트</h1>
     <p class="muted small">복습용이에요. 여기 있는 문제는 테스트에 다시 나오지 않아요.</p>
+    ${notePdfList()}
     <div class="chips">
       <button class="chip ${ui.noteFilter ? "" : "bad"}" data-action="note-filter" data-t="">전체</button>
       ${types
@@ -566,7 +585,101 @@ function renderWords() {
 
 // --- 화면: 인쇄용 보기 (크롬 인쇄 -> PDF 저장 -> 삼성노트에서 필기) ---------------
 
+// --- 오답노트 PDF ----------------------------------------------------------------
+
+const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+function fmtDay(key, long = false) {
+  const [y, m, d] = key.split("-").map(Number);
+  const w = DAYS[new Date(y, m - 1, d).getDay()];
+  return long ? `${y}년 ${m}월 ${d}일 (${w})` : `${m}/${d} (${w})`;
+}
+
+function notePdfList() {
+  const days = [...wrongByDate(index, state.history)].slice(0, 14);
+  if (!days.length) return "";
+  return `<section class="group"><h3>📄 날짜별 오답노트 PDF</h3>
+    <p class="muted small">그날 틀린 문제마다 해설·공식·같은 공식 예문·외울 단어를 모은 노트예요. 파일 이름에 날짜가 들어가요.</p>
+    ${days
+      .map(
+        ([day, list]) => `<div class="row pdfrow"><div>${fmtDay(day)} · 틀린 문제 ${list.length}개${
+          state.notePdfs[day] ? ` <span class="chip small">만듦</span>` : ""
+        }</div><span class="spacer"></span><button class="small" data-action="open-note-pdf" data-date="${day}">PDF 만들기</button></div>`,
+      )
+      .join("")}</section>`;
+}
+
+// 문제 하나의 오답노트 블록
+function noteBlock(a, num, exclude) {
+  const q = index.byId.get(a.id);
+  const order = a.o ?? [0, 1, 2, 3];
+  const opts = order
+    .map((i, pos) => {
+      const mark = i === q.a ? " ✓ 정답" : i === a.ch ? " ✗ 내 답" : "";
+      const cls = i === q.a ? "correct" : i === a.ch ? "mine" : "";
+      return `<li class="${cls}">(${LETTERS[pos]}) ${esc(q.c[i])}${mark}${q.cm ? ` <span class="cm">${esc(q.cm[i])}</span>` : ""}</li>`;
+    })
+    .join("");
+  const rules = (q.r ?? []).map((id) => index.rules.get(id)).filter(Boolean);
+  const main = rules[0];
+  const examples = (main?.x ?? [])
+    .map(([en, ko]) => `<li>${esc(en).replace(/\[(.+?)\]/g, "<b>$1</b>")}<div class="muted small">${esc(ko)}</div></li>`)
+    .join("");
+  const solved = relatedSolved(index, state.history, q, exclude);
+  const solvedLi = solved
+    ? `<li>${boldWord(esc(filledSentence(solved)), solved.c[solved.a])} <span class="chip small">내가 풀었던 문제</span><div class="muted small">${esc(solved.tr)}</div></li>`
+    : "";
+  const words = noteWords(q, a.ch)
+    .map(([w, m]) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td></tr>`)
+    .join("");
+  const [tense] = q.tn ?? [];
+  return `<article class="note">
+    <header><b>${num}.</b> <span class="chip">${esc(typeLabel(q.t))}</span></header>
+    <div class="qtext">${sentence(q)}</div>
+    <ol class="opts">${opts}</ol>
+    <div class="nline"><span class="gtag">정답 문장</span><div>${boldWord(esc(filledSentence(q)), q.c[q.a])}<div class="muted small">${esc(q.tr)}</div></div></div>
+    <div class="nline"><span class="gtag">빈칸</span><div>${esc(q.sl)}</div></div>
+    <div class="nline"><span class="gtag">문장</span><div>${esc(q.fm)} · ${esc(q.why?.vl ?? "")} · ${esc(tense ?? "")}</div></div>
+    <div class="nline"><span class="gtag">해설</span><div>${esc(q.ex)}</div></div>
+    ${rules
+      .map((r) => `<div class="nrule">📌 <b>${esc(r.t)}</b><div class="small">${esc(r.d)}</div></div>`)
+      .join("")}
+    ${examples || solvedLi ? `<div class="nsub">🔁 같은 공식 문장 <span class="muted small">— ${esc(main.t)}</span></div><ol class="nex">${examples}${solvedLi}</ol>` : ""}
+    ${words ? `<div class="nsub">🔤 외울 단어</div><table class="vocab">${words}</table>` : ""}
+  </article>`;
+}
+
+function renderNotePdf() {
+  const day = ui.printDate;
+  const list = wrongByDate(index, state.history).get(day) ?? [];
+  const exclude = new Set(list.map((a) => a.id)); // 같은 날 오답끼리는 '풀었던 문제' 예문으로 겹쳐 쓰지 않는다
+  const blocks = list.map((a, k) => noteBlock(a, k + 1, exclude)).join("");
+  // 끝에 모아 보는 암기 목록: 공식과 단어 (중복 제거)
+  const rules = new Map();
+  const words = new Map();
+  for (const a of list) {
+    const q = index.byId.get(a.id);
+    for (const id of q.r ?? []) if (index.rules.has(id)) rules.set(id, index.rules.get(id));
+    for (const [w, m] of noteWords(q, a.ch)) if (!words.has(wordKey(w))) words.set(wordKey(w), [w, m]);
+  }
+  return `
+    <div class="noprint">
+      <div class="topbar"><button class="ghost" data-action="go" data-to="notes">← 오답 노트</button><span class="spacer"></span>
+        <button class="primary" data-action="print">인쇄 · PDF 저장</button></div>
+      <p class="small muted">'인쇄 · PDF 저장' → 프린터를 'PDF로 저장' → 저장 위치를 오답노트 폴더로 고르세요. 파일 이름은 <b>Part5 오답노트 ${esc(day)}</b>로 정해져 있어요.</p>
+    </div>
+    <h1 class="print-title">Part 5 오답노트 <span class="small muted">${fmtDay(day, true)} · 틀린 문제 ${list.length}개</span></h1>
+    ${blocks || `<p class="muted">이 날짜에 틀린 문제가 없어요.</p>`}
+    ${
+      list.length
+        ? `<section class="note summary"><h2>✅ 오늘 꼭 외울 것</h2>
+      <h3>풀이 공식 ${rules.size}개</h3><ol>${[...rules.values()].map((r) => `<li>${esc(r.t)}</li>`).join("")}</ol>
+      <h3>단어 ${words.size}개</h3><table class="vocab">${[...words.values()].map(([w, m]) => `<tr><td>${esc(w)}</td><td>${esc(m)}</td></tr>`).join("")}</table></section>`
+        : ""
+    }`;
+}
+
 function renderPrint() {
+  if (ui.printWhat === "notes") return renderNotePdf();
   const words = ui.printWhat === "words";
   const title = words ? "Part 5 단어장" : "Part 5 풀이 공식";
   let rows = "";
@@ -621,6 +734,7 @@ function render() {
   if (view.name === "test" && !state.inProgress) view = { name: "home" };
   $app.innerHTML = (screens[view.name] ?? renderHome)();
   document.body.classList.toggle("printing", view.name === "print");
+  document.title = view.name === "print" && ui.printWhat === "notes" ? `Part5 오답노트 ${ui.printDate}` : APP_TITLE;
   if (view.name === "test" && state.settings.showTimer) {
     timerId = setInterval(() => {
       const el = document.getElementById("timer");
@@ -891,7 +1005,18 @@ const actions = {
     ui.printScope = el.dataset.f;
     render();
   },
-  print: () => window.print(),
+  print: () => {
+    if (ui.printWhat === "notes") {
+      state.notePdfs[ui.printDate] = Date.now();
+      persist();
+    }
+    window.print();
+  },
+  "open-note-pdf": (el) => {
+    ui.printWhat = "notes";
+    ui.printDate = el.dataset.date;
+    go("print");
+  },
   "rule-filter": (el) => {
     ui.ruleFilter = el.dataset.f;
     render();

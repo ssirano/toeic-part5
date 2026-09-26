@@ -279,7 +279,7 @@ button.danger { color: var(--bad); border-color: var(--bad); background: transpa
   color: var(--muted); cursor: pointer;
 }
 .star.on { color: var(--warn); }
-.vocab td:last-child { width: 1%; text-align: right; }
+.vocab td.st { width: 1%; text-align: right; }
 .pair { display: flex; align-items: center; gap: 8px; margin: 4px 0 6px; }
 
 /* 풀이 공식 */
@@ -317,3 +317,23 @@ button.danger { color: var(--bad); border-color: var(--bad); background: transpa
   .print-title { font-size: 16pt; }
 }
 .wmore.hid { display: none; }
+
+/* 오답노트 PDF */
+.pdfrow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.note { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin: 14px 0; }
+.note header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.note ol.opts { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
+.note ol.opts li.correct { color: var(--ok); font-weight: 700; }
+.note ol.opts li.mine { color: var(--bad); }
+.nline { display: grid; grid-template-columns: 5.2em 1fr; gap: 8px; margin: 6px 0; }
+.nrule { background: var(--primary-soft); border-radius: 8px; padding: 6px 10px; margin: 6px 0; }
+.nsub { font-weight: 700; margin: 10px 0 4px; }
+.nex { margin: 0; padding-left: 1.4em; }
+.nex li { margin: 4px 0; }
+.note.summary h2 { margin-top: 0; }
+@media print {
+  .note { break-inside: avoid; border-color: #999; border-radius: 0; }
+  .nrule { background: #eef3fb; }
+  .note ol.opts li.correct { color: #0a6b2e; }
+  .note ol.opts li.mine { color: #b3261e; }
+}

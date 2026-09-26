@@ -101,3 +101,55 @@ export function ruleCounts(index) {
   for (const q of index.byId.values()) for (const r of q.r ?? []) counts.set(r, (counts.get(r) ?? 0) + 1);
   return counts;
 }
+
+// --- 날짜별 오답노트 (PDF) -------------------------------------------------------
+
+// 기기 시간 기준 날짜 "2026-09-26"
+export function dateKey(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// 날짜 -> 그날 틀린 풀이 (같은 문제는 한 번만), 최근 날짜부터
+export function wrongByDate(index, history) {
+  const days = new Map();
+  for (const a of [...history.attempts].sort((x, y) => x.ts - y.ts)) {
+    if (a.ok || !index.byId.has(a.id)) continue;
+    const day = dateKey(a.ts);
+    const list = days.get(day) ?? new Map();
+    list.set(a.id, a);
+    days.set(day, list);
+  }
+  return new Map([...days].sort((x, y) => (x[0] < y[0] ? 1 : -1)).map(([d, m]) => [d, [...m.values()]]));
+}
+
+// 같은 공식(첫 번째 공식)을 쓴, 이미 풀어 본 다른 문제 하나 — 가장 최근 것. 안 푼 문제는 답이 새어 나가므로 쓰지 않는다
+export function relatedSolved(index, history, q, exclude = new Set()) {
+  const rule = q.r?.[0];
+  if (!rule) return null;
+  for (const a of [...history.attempts].sort((x, y) => y.ts - x.ts)) {
+    if (a.id === q.id || exclude.has(a.id)) continue;
+    const other = index.byId.get(a.id);
+    if (other?.r?.includes(rule)) return other;
+  }
+  return null;
+}
+
+// 오답노트에 넣을 단어: 해설 어휘 + 어휘 문제는 짝꿍 표현과 정답·내 오답 보기
+export function noteWords(q, chosen) {
+  const out = q.v.map(([w, m]) => [w, m]);
+  if (q.k) {
+    const e = wordFrom(q, "k");
+    out.unshift([e.w, e.m]);
+  }
+  if (q.cm) {
+    for (const i of [q.a, chosen]) if (i !== null && i !== undefined) out.push([q.c[i], q.cm[i]]);
+  }
+  const seen = new Set();
+  return out.filter(([w]) => {
+    const key = wordKey(w);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

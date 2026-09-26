@@ -7,7 +7,7 @@ const KEY = "part5-trainer.v1";
 export const DEFAULT_SETTINGS = { autoAdvance: true, showTimer: true, scale: 1, autoWords: true };
 
 export function defaultState() {
-  return { history: emptyHistory(), inProgress: null, settings: { ...DEFAULT_SETTINGS }, flags: [], words: {} };
+  return { history: emptyHistory(), inProgress: null, settings: { ...DEFAULT_SETTINGS }, flags: [], words: {}, notePdfs: {} };
 }
 
 export function load() {
@@ -40,6 +40,7 @@ function normalize(data) {
     settings: { ...base.settings, ...(data?.settings ?? {}) },
     flags: Array.isArray(data?.flags) ? data.flags : [],
     words: data?.words && typeof data.words === "object" && !Array.isArray(data.words) ? data.words : {},
+    notePdfs: data?.notePdfs && typeof data.notePdfs === "object" ? data.notePdfs : {}, // 날짜 -> 오답노트 PDF 만든 시각
   };
 }
 

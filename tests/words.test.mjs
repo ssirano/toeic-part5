@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { indexBank } from "../docs/js/engine.js";
-import { addWord, ankiText, autoCollect, boldWord, ruleCounts, wordFrom, worstRules } from "../docs/js/words.js";
+import { addWord, ankiText, autoCollect, boldWord, dateKey, noteWords, relatedSolved, ruleCounts, wordFrom, worstRules, wrongByDate } from "../docs/js/words.js";
 
 const bank = JSON.parse(readFileSync(new URL("../docs/questions.json", import.meta.url)));
 const index = indexBank(bank);
@@ -66,4 +66,45 @@ test("많이 틀린 공식: 틀린 횟수 순", () => {
   const worst = worstRules(index, history);
   assert.equal(worst[0].rule.id, grammar.r[0]);
   assert.equal(worst[0].wrong, 2);
+});
+
+test("모든 공식에 예문 3개 이상, [핵심] 표시", () => {
+  for (const r of index.rules.values()) {
+    assert.ok(r.x.length >= 3, r.id);
+    for (const [en, ko] of r.x) assert.ok(/\[.+?\]/.test(en) && ko, `${r.id}: ${en}`);
+  }
+});
+
+test("날짜별 오답: 같은 날 같은 문제는 한 번, 최근 날짜부터", () => {
+  const day1 = new Date(2026, 8, 25, 10).getTime();
+  const day2 = new Date(2026, 8, 26, 22).getTime();
+  const history = {
+    attempts: [
+      { id: grammar.id, ok: false, ts: day1 },
+      { id: vocVerb.id, ok: true, ts: day1 },
+      { id: vocVerb.id, ok: false, ts: day2 },
+      { id: vocVerb.id, ok: false, ts: day2 + 1 },
+    ],
+    tests: [],
+  };
+  const days = wrongByDate(index, history);
+  assert.deepEqual([...days.keys()], ["2026-09-26", "2026-09-25"]);
+  assert.equal(days.get("2026-09-26").length, 1);
+  assert.equal(dateKey(day1), "2026-09-25");
+});
+
+test("같은 공식의 '풀었던 문제'는 이미 푼 문제에서만 고른다", () => {
+  const rule = grammar.r[0];
+  const sameRule = bank.questions.filter((q) => q.id !== grammar.id && q.r.includes(rule));
+  assert.equal(relatedSolved(index, { attempts: [], tests: [] }, grammar), null);
+  const history = { attempts: [{ id: sameRule[0].id, ok: true, ts: 1 }], tests: [] };
+  assert.equal(relatedSolved(index, history, grammar).id, sameRule[0].id);
+  assert.equal(relatedSolved(index, history, grammar, new Set([sameRule[0].id])), null);
+});
+
+test("오답노트 단어: 짝꿍 + 해설 어휘 + 정답·내 오답 보기, 중복 없이", () => {
+  const wrong = (vocVerb.a + 1) % 4;
+  const words = noteWords(vocVerb, wrong).map(([w]) => w.toLowerCase());
+  assert.ok(words.includes(vocVerb.c[wrong].toLowerCase()));
+  assert.equal(new Set(words).size, words.length);
 });

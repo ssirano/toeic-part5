@@ -7,6 +7,10 @@
     @ID | 공식 | 설명 | 예시            공식 정의
     = 유형코드: 0 3 5                  바로 위 공식을 이 문제들(파일 안 순서, 0부터)에 연결
 
+examples-*.txt — 공식마다 예문 3개 (오답노트 PDF의 '같은 공식 예문', 문제 은행과 겹치면 안 됨):
+    @ID
+    영어 예문 ([ ]로 공식이 적용된 부분 표시) | 해석
+
 voc-data.txt — 어휘 문제별 짝꿍 표현·보기 뜻·공식:
     유형코드 번호 | 짝꿍 표현 | 뜻1 / 뜻2 / 뜻3 / 뜻4 (없으면 -) | 공식ID 공식ID
     + 유형코드 번호 번호 | 공식ID ...    (문법 문제에 공식 추가)
@@ -41,7 +45,7 @@ def main(src: Path) -> int:
             lst.append(rid)
 
     for path in sorted(src.glob("*.txt")):
-        if path.name == "voc-data.txt":
+        if path.name == "voc-data.txt" or path.name.startswith("examples-"):
             continue
         group = None
         current = None
@@ -95,7 +99,28 @@ def main(src: Path) -> int:
         for rid in ids.split():
             link(code, int(idx), rid, where)
 
+    examples: dict[str, list[list[str]]] = {}
+    for path in sorted(src.glob("examples-*.txt")):
+        rid = None
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            where = f"{path.name}:{n}"
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("@"):
+                rid = line[1:].strip()
+                examples.setdefault(rid, [])
+                continue
+            en, _, ko = (p.strip() for p in line.partition("|"))
+            if not (en and ko and "[" in en and "]" in en):
+                errors.append(f"{where}: '영어 [핵심] | 해석' 형식이 아님")
+            examples[rid].append([en, ko])
+
     known = {r["id"] for r in rules}
+    errors += [f"예문의 공식 ID가 없음: {rid}" for rid in sorted(set(examples) - known)]
+    errors += [f"예문이 3개 미만인 공식: {r['id']}" for r in rules if len(examples.get(r["id"], [])) < 3]
+    for r in rules:
+        r["x"] = examples.get(r["id"], [])
     if len(known) != len(rules):
         errors.append("공식 ID 중복")
     used = {rid for lst in links.values() for rid in lst}

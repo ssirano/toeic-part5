@@ -28,6 +28,7 @@ DATA = ROOT / "data"
 OUT = ROOT / "docs" / "questions.json"
 BLANK = "-------"
 NEAR_DUP_RATIO = 0.85
+EXAMPLE_DUP_RATIO = 0.7
 
 
 RULES = json.loads((DATA / "rules.json").read_text(encoding="utf-8"))
@@ -115,6 +116,16 @@ def main() -> int:
             sm = SequenceMatcher(None, a, b)
             if sm.real_quick_ratio() >= NEAR_DUP_RATIO and sm.quick_ratio() >= NEAR_DUP_RATIO and sm.ratio() >= NEAR_DUP_RATIO:
                 errors.append(f"너무 비슷한 문제: {norms[i][0]} ~ {norms[j][0]}")
+
+    # 공식 예문이 문제 은행 문장과 겹치면 오답노트 PDF가 앞으로 풀 문제의 답을 미리 보여주게 된다
+    filled = [(q["id"], normalize(q["q"].replace(BLANK, q["c"][q["a"]]))) for q in questions]
+    for r in RULES:
+        for en, _ in r.get("x", []):
+            ex = normalize(re.sub(r"\(.*?\)", "", en).replace("[", "").replace("]", ""))
+            for qid, sent in filled:
+                sm = SequenceMatcher(None, ex, sent)
+                if sm.real_quick_ratio() >= EXAMPLE_DUP_RATIO and sm.quick_ratio() >= EXAMPLE_DUP_RATIO and sm.ratio() >= EXAMPLE_DUP_RATIO:
+                    errors.append(f"공식 {r['id']} 예문이 문제 {qid}와 너무 비슷함: {en}")
 
     width = max(len(c) for c in codes)
     for g in taxonomy["groups"]:
